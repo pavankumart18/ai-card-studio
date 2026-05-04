@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Card Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    .card-enter {
+      animation: cardEnter 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes cardEnter {
+      from { opacity: 0; transform: translateY(-18px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0)    scale(1); }
+    }
+
+    .badge-chart    { background:#dbeafe; color:#1d4ed8; }
+    .badge-widget   { background:#ede9fe; color:#6d28d9; }
+    .badge-data     { background:#dcfce7; color:#15803d; }
+    .badge-research { background:#fef3c7; color:#b45309; }
+    .badge-code     { background:#ffe4e6; color:#be123c; }
+    .badge-unknown  { background:#f3f4f6; color:#374151; }
+
+    .tool-bar { border-left: 2px solid #6366f1; }
+
+    #stream-pane::-webkit-scrollbar { width: 4px; }
+    #stream-pane::-webkit-scrollbar-track { background: #1e293b; }
+    #stream-pane::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
+
+    .data-table th {
+      background: #f8fafc; font-weight: 600; color: #475569;
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .data-table td { border-top: 1px solid #f1f5f9; }
+    .data-table tr:hover td { background: #f8fafc; }
+
+    iframe.widget-frame { border: none; background: #fff; }
+
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      display: inline-block; vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .pulse-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: #22c55e;
+      animation: pdot 1.5s ease infinite;
+    }
+    @keyframes pdot {
+      0%,100% { opacity:1; transform:scale(1); }
+      50%      { opacity:.35; transform:scale(.75); }
+    }
+
+    pre[class*=language-] { margin: 0 !important; border-radius: 0 !important; }
+    code[class*=language-] { font-family: 'JetBrains Mono', monospace !important; font-size: 0.72rem !important; }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+<!-- ── HEADER ─────────────────────────────────────────────────────── -->
+<header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
+  <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+        <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-white font-semibold text-base leading-tight">AI Card Studio</h1>
+        <p class="text-slate-400 text-xs">Claude Managed Agents Demo</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="text-xs text-slate-500 hidden sm:inline mono">claude-sonnet-4-5</span>
+      <div id="status-dot" class="pulse-dot ml-1"></div>
+    </div>
+  </div>
+</header>
+
+<!-- ── PROMPT BAR ──────────────────────────────────────────────────── -->
+<div class="max-w-6xl mx-auto px-6 pt-8 pb-4">
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+    <div class="flex gap-3 items-center">
+      <input
+        id="prompt-input"
+        type="text"
+        placeholder="Describe what you want to create…"
+        class="flex-1 text-slate-800 placeholder-slate-400 text-sm outline-none bg-transparent min-w-0"
+      />
+      <button id="submit-btn" onclick="submitPrompt()"
+        class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-60 text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors flex-shrink-0">
+        <span id="btn-text">Generate</span>
+        <span id="btn-spinner" class="spinner hidden"></span>
+      </button>
+    </div>
+    <!-- Example chips -->
+    <div id="chips" class="flex flex-wrap gap-2 mt-4">
+      <button onclick="useChip(this)" class="text-xs px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 rounded-full border border-slate-200 hover:border-indigo-200 transition-colors">Plot Fibonacci sequence up to 100 as a bar chart</button>
+      <button onclick="useChip(this)" class="text-xs px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 rounded-full border border-slate-200 hover:border-indigo-200 transition-colors">Build me a tip calculator widget</button>
+      <button onclick="useChip(this)" class="text-xs px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 rounded-full border border-slate-200 hover:border-indigo-200 transition-colors">Fetch Bitcoin price from CoinGecko and show a 7-day analysis</button>
+      <button onclick="useChip(this)" class="text-xs px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 rounded-full border border-slate-200 hover:border-indigo-200 transition-colors">Research Anthropic's Managed Agents and summarize</button>
+      <button onclick="useChip(this)" class="text-xs px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 rounded-full border border-slate-200 hover:border-indigo-200 transition-colors">Write a Python script that finds all primes under 1000 and run it</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── STREAM PANE ─────────────────────────────────────────────────── -->
+<div id="stream-wrapper" class="max-w-6xl mx-auto px-6 pb-4 hidden">
+  <div class="bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden">
+    <div class="flex items-center gap-3 px-5 py-3 border-b border-slate-700">
+      <div class="pulse-dot"></div>
+      <span class="text-slate-300 text-xs font-medium">Agent running in cloud container…</span>
+      <span id="stream-elapsed" class="ml-auto text-slate-500 text-xs mono"></span>
+    </div>
+    <div id="stream-pane" class="p-4 space-y-2 overflow-y-auto max-h-64 text-xs"></div>
+  </div>
+</div>
+
+<!-- ── ERROR BANNER ───────────────────────────────────────────────── -->
+<div id="error-banner" class="hidden max-w-6xl mx-auto px-6 pb-4">
+  <div class="bg-red-50 border border-red-200 rounded-xl px-5 py-3 flex items-start gap-3">
+    <svg class="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    <p id="error-text" class="text-red-700 text-sm"></p>
+  </div>
+</div>
+
+<!-- ── CARDS GRID ─────────────────────────────────────────────────── -->
+<div class="max-w-6xl mx-auto px-6 pb-12">
+  <div id="empty-state" class="hidden text-center py-20">
+    <div class="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+      <svg class="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+      </svg>
+    </div>
+    <p class="text-slate-400 text-sm">No cards yet — enter a prompt to generate your first card.</p>
+  </div>
+  <div id="cards-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"></div>
+</div>
+
+<!-- ── MODAL ──────────────────────────────────────────────────────── -->
+<div id="modal" class="fixed inset-0 z-50 hidden bg-slate-900/60 flex items-center justify-center p-4"
+     style="backdrop-filter:blur(4px)" onclick="closeModalOutside(event)">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col">
+    <!-- Modal header -->
+    <div class="flex items-start justify-between px-6 py-5 border-b border-slate-100 flex-shrink-0">
+      <div class="min-w-0">
+        <div id="modal-badge" class="inline-block text-xs font-semibold px-2.5 py-1 rounded-full mb-2"></div>
+        <h2 id="modal-title" class="text-slate-800 font-semibold text-base leading-snug"></h2>
+        <p id="modal-prompt" class="text-slate-500 text-xs mt-1 italic"></p>
+      </div>
+      <button onclick="closeModal()" class="ml-4 text-slate-400 hover:text-slate-600 transition-colors flex-shrink-0 p-1">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <!-- Tool trace -->
+    <div class="px-6 py-5 overflow-y-auto flex-1">
+      <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Tool Trace</p>
+      <div id="modal-trace" class="space-y-2"></div>
+      <p id="modal-empty-trace" class="hidden text-slate-400 text-sm">No tool calls recorded.</p>
+    </div>
+    <!-- Modal footer -->
+    <div class="px-6 py-4 border-t border-slate-100 flex items-center justify-between flex-shrink-0">
+      <span id="modal-date" class="text-xs text-slate-400 mono"></span>
+      <button id="modal-delete-btn" onclick="deleteFromModal()"
+        class="text-xs text-red-500 hover:text-red-600 font-medium transition-colors">Delete card</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── State ─────────────────────────────────────────────────────────── */
+const cardsMap = {};       // id → card object
+let running     = false;
+let modalCardId = null;
+let streamTimer = null;
+
+/* ── Boot ──────────────────────────────────────────────────────────── */
+loadCards();
+
+/* ── Load persisted cards ──────────────────────────────────────────── */
+async function loadCards() {
+  try {
+    const { cards } = await fetchJSON('/api/cards');
+    const grid = document.getElementById('cards-grid');
+    grid.innerHTML = '';
+    if (cards.length === 0) {
+      document.getElementById('empty-state').classList.remove('hidden');
+    } else {
+      document.getElementById('empty-state').classList.add('hidden');
+      cards.forEach(c => { cardsMap[c.id] = c; grid.appendChild(buildCard(c)); });
+      highlightAll();
+    }
+  } catch (e) {
+    showError('Could not load cards: ' + e.message);
+  }
+}
+
+/* ── Prompt submission ─────────────────────────────────────────────── */
+function useChip(el) {
+  document.getElementById('prompt-input').value = el.textContent.trim();
+  document.getElementById('prompt-input').focus();
+}
+
+document.getElementById('prompt-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !running) submitPrompt();
+});
+
+async function submitPrompt() {
+  if (running) return;
+  const prompt = document.getElementById('prompt-input').value.trim();
+  if (!prompt) return;
+
+  setRunning(true);
+  hideError();
+  clearStream();
+  showStream();
+
+  try {
+    const { session_id } = await fetchJSON('/api/prompt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
+    openStream(session_id);
+  } catch (e) {
+    showError(e.message);
+    setRunning(false);
+    hideStream();
+  }
+}
+
+/* ── SSE stream ────────────────────────────────────────────────────── */
+function openStream(sessionId) {
+  const es = new EventSource(`/api/stream/${sessionId}`);
+
+  es.onmessage = ({ data }) => {
+    const evt = JSON.parse(data);
+    switch (evt.type) {
+      case 'agent.message':
+        streamText(evt.text);
+        break;
+      case 'agent.tool_use':
+        streamTool(evt.name, evt.summary);
+        break;
+      case 'card.created':
+        es.close();
+        onCardCreated(evt.card);
+        break;
+      case 'error':
+        es.close();
+        showError(evt.message);
+        setRunning(false);
+        hideStream();
+        break;
+    }
+  };
+
+  es.onerror = () => {
+    es.close();
+    if (running) {
+      showError('Server connection lost. Please try again.');
+      setRunning(false);
+      hideStream();
+    }
+  };
+}
+
+/* ── Card created ──────────────────────────────────────────────────── */
+function onCardCreated(card) {
+  setRunning(false);
+  document.getElementById('prompt-input').value = '';
+
+  // Brief pause to let the user see the stream finishing, then swap
+  setTimeout(() => {
+    hideStream();
+    cardsMap[card.id] = card;
+    const grid = document.getElementById('cards-grid');
+    document.getElementById('empty-state').classList.add('hidden');
+    const el = buildCard(card);
+    el.classList.add('card-enter');
+    grid.prepend(el);
+    highlightAll();
+  }, 700);
+}
+
+/* ── Build a card element ──────────────────────────────────────────── */
+function buildCard(card) {
+  const wrap = document.createElement('div');
+  wrap.className = 'bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col';
+  wrap.dataset.cardId = card.id;
+
+  wrap.innerHTML = `
+    <!-- card header -->
+    <div class="flex items-start justify-between px-5 pt-5 pb-3 gap-3">
+      <div class="min-w-0 flex-1">
+        <span class="badge badge-${esc(card.type)} text-xs font-semibold px-2.5 py-1 rounded-full">${esc(card.type)}</span>
+        <h3 class="text-slate-800 font-semibold text-sm mt-2 leading-snug">${esc(card.title)}</h3>
+      </div>
+      <button data-del="${esc(card.id)}"
+        class="text-slate-300 hover:text-red-400 transition-colors flex-shrink-0 pt-1" title="Delete">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <!-- card content -->
+    <div class="px-5 pb-4 flex-1 min-w-0"></div>
+    <!-- card footer -->
+    <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
+      <span class="text-xs text-slate-400 mono">${esc(fmtDate(card.created_at))}</span>
+      <button data-trace="${esc(card.id)}"
+        class="text-xs text-indigo-600 hover:text-indigo-700 font-medium transition-colors">View trace →</button>
+    </div>
+  `;
+
+  // Render payload into content slot
+  const contentSlot = wrap.querySelector('.pb-4.flex-1');
+  try {
+    contentSlot.innerHTML = renderPayload(card.type, card.payload);
+  } catch (e) {
+    contentSlot.innerHTML = `<p class="text-xs text-red-400">Render error: ${esc(e.message)}</p>`;
+  }
+
+  // Wire up buttons
+  wrap.querySelector('[data-del]').addEventListener('click', () => deleteCard(card.id));
+  wrap.querySelector('[data-trace]').addEventListener('click', () => openModal(card.id));
+
+  return wrap;
+}
+
+/* ── Payload renderers ─────────────────────────────────────────────── */
+function renderPayload(type, p) {
+  switch (type) {
+    case 'chart':    return renderChart(p);
+    case 'widget':   return renderWidget(p);
+    case 'data':     return renderData(p);
+    case 'research': return renderResearch(p);
+    case 'code':     return renderCode(p);
+    default:         return `<pre class="text-xs text-slate-400 mono overflow-x-auto">${esc(JSON.stringify(p,null,2))}</pre>`;
+  }
+}
+
+function renderChart(p) {
+  if (!p.image_b64) return '<p class="text-slate-400 text-sm">No image produced.</p>';
+  return `
+    <img src="data:image/png;base64,${p.image_b64}"
+         class="w-full rounded-xl object-contain max-h-64 bg-slate-50" alt="Chart" />
+    ${p.description ? `<p class="text-xs text-slate-500 mt-2">${esc(p.description)}</p>` : ''}
+  `;
+}
+
+function renderWidget(p) {
+  const b64 = p.html_b64 || '';
+  const raw = p.html || '';
+  if (!b64 && !raw) return '<p class="text-slate-400 text-sm">No widget data.</p>';
+
+  let html;
+  try {
+    html = b64 ? atob(b64.replace(/\s/g, '')) : raw;
+  } catch (e) {
+    return `<p class="text-xs text-red-400">Base64 decode error: ${esc(e.message)}</p>`;
+  }
+
+  // If agent returned a full doc, use it directly; otherwise wrap it
+  const isFullDoc = /^\s*<!doctype|^\s*<html/i.test(html);
+  const srcdoc = isFullDoc ? html
+    : `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:8px;font-family:system-ui,sans-serif;font-size:14px}</style></head><body>${html}</body></html>`;
+
+  return `<iframe class="widget-frame w-full rounded-xl" sandbox="allow-scripts allow-forms"
+             srcdoc="${esc(srcdoc)}" style="height:268px"></iframe>`;
+}
+
+function renderData(p) {
+  const cols = p.columns || [];
+  const rows = p.rows   || [];
+  if (!cols.length && !rows.length) return '<p class="text-slate-400 text-sm">No data.</p>';
+  const thead = cols.map(c => `<th class="px-3 py-2 text-left whitespace-nowrap">${esc(String(c))}</th>`).join('');
+  const preview = rows.slice(0, 10);
+  const tbody = preview.map(r =>
+    `<tr>${r.map(v => `<td class="px-3 py-2 text-slate-700">${esc(String(v))}</td>`).join('')}</tr>`
+  ).join('');
+  const more = rows.length > 10 ? `<p class="text-xs text-slate-400 mt-1.5">…and ${rows.length - 10} more rows</p>` : '';
+  return `
+    <div class="overflow-x-auto rounded-xl border border-slate-100">
+      <table class="data-table w-full text-xs">${thead ? `<thead><tr>${thead}</tr></thead>` : ''}<tbody>${tbody}</tbody></table>
+    </div>
+    ${more}
+    ${p.insight ? `<p class="text-sm text-slate-600 mt-3">💡 ${esc(p.insight)}</p>` : ''}
+  `;
+}
+
+function renderResearch(p) {
+  const summary = (p.summary || '').replace(/\n/g, '<br>');
+  const cites = (p.citations || []).slice(0, 8);
+  const citesHtml = cites.length ? `
+    <div class="mt-3 space-y-1 pt-3 border-t border-slate-100">
+      ${cites.map(c => `
+        <a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer"
+           class="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-700 hover:underline">
+          <svg class="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+          </svg>
+          ${esc(c.title || c.url)}
+        </a>`).join('')}
+    </div>` : '';
+  return `<div class="text-sm text-slate-700 leading-relaxed overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:7;-webkit-box-orient:vertical">${esc(p.summary || '').replace(/\n/g,'<br>')}</div>${citesHtml}`;
+}
+
+function renderCode(p) {
+  const lang = p.language || 'python';
+  const code = p.code   || '';
+  const out  = p.stdout || '';
+  return `
+    <div class="rounded-xl overflow-hidden border border-slate-200">
+      <div class="bg-slate-800 px-3 py-1.5 flex items-center gap-2">
+        <div class="flex gap-1"><div class="w-2.5 h-2.5 rounded-full bg-red-500/60"></div><div class="w-2.5 h-2.5 rounded-full bg-yellow-500/60"></div><div class="w-2.5 h-2.5 rounded-full bg-green-500/60"></div></div>
+        <span class="text-xs text-slate-400 mono">${esc(lang)}</span>
+      </div>
+      <div class="overflow-x-auto max-h-44"><pre class="!m-0 !rounded-none"><code class="language-${esc(lang)}">${esc(code)}</code></pre></div>
+    </div>
+    ${out ? `<div class="mt-2 rounded-xl bg-slate-900 p-3 overflow-x-auto">
+      <div class="text-xs text-slate-500 mb-1 mono">stdout</div>
+      <pre class="text-xs text-green-400 mono whitespace-pre-wrap max-h-24 overflow-y-auto">${esc(out)}</pre>
+    </div>` : ''}
+  `;
+}
+
+/* ── Modal ──────────────────────────────────────────────────────────── */
+function openModal(cardId) {
+  const card = cardsMap[cardId];
+  if (!card) return;
+  modalCardId = cardId;
+
+  document.getElementById('modal-badge').textContent = card.type;
+  document.getElementById('modal-badge').className =
+    `badge badge-${card.type} inline-block text-xs font-semibold px-2.5 py-1 rounded-full mb-2`;
+  document.getElementById('modal-title').textContent  = card.title;
+  document.getElementById('modal-prompt').textContent = `"${card.prompt}"`;
+  document.getElementById('modal-date').textContent   = fmtDate(card.created_at);
+
+  const trace = card.tool_trace || [];
+  const el = document.getElementById('modal-trace');
+  const empty = document.getElementById('modal-empty-trace');
+  if (!trace.length) {
+    el.innerHTML = '';
+    empty.classList.remove('hidden');
+  } else {
+    empty.classList.add('hidden');
+    el.innerHTML = trace.map(t => `
+      <div class="tool-bar pl-3 py-1.5 rounded-r-lg bg-slate-50">
+        <span class="text-indigo-500 text-xs font-semibold mono">▶ ${esc(t.tool)}</span>
+        <span class="text-slate-500 text-xs mono break-all ml-2">${esc(t.input)}</span>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('modal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.add('hidden');
+  document.body.style.overflow = '';
+  modalCardId = null;
+}
+
+function closeModalOutside(e) {
+  if (e.target === document.getElementById('modal')) closeModal();
+}
+
+function deleteFromModal() {
+  if (modalCardId) { deleteCard(modalCardId); closeModal(); }
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+/* ── Card deletion ──────────────────────────────────────────────────── */
+async function deleteCard(cardId) {
+  try {
+    await fetch(`/api/cards/${cardId}`, { method: 'DELETE' });
+    delete cardsMap[cardId];
+    document.querySelector(`[data-card-id="${cardId}"]`)?.remove();
+    if (!document.getElementById('cards-grid').children.length) {
+      document.getElementById('empty-state').classList.remove('hidden');
+    }
+  } catch (e) {
+    showError('Delete failed: ' + e.message);
+  }
+}
+
+/* ── Stream pane ────────────────────────────────────────────────────── */
+function showStream() {
+  document.getElementById('stream-wrapper').classList.remove('hidden');
+  let t = 0;
+  streamTimer = setInterval(() => {
+    document.getElementById('stream-elapsed').textContent = (++t) + 's';
+  }, 1000);
+}
+
+function hideStream() {
+  clearInterval(streamTimer);
+  document.getElementById('stream-wrapper').classList.add('hidden');
+  document.getElementById('stream-elapsed').textContent = '';
+}
+
+function clearStream() {
+  document.getElementById('stream-pane').innerHTML = '';
+}
+
+function streamText(text) {
+  const pane = document.getElementById('stream-pane');
+  let cur = pane.querySelector('.stream-text');
+  if (!cur) {
+    cur = document.createElement('p');
+    cur.className = 'stream-text text-slate-400 leading-relaxed';
+    pane.appendChild(cur);
+  }
+  cur.textContent += text;
+  pane.scrollTop = pane.scrollHeight;
+}
+
+function streamTool(name, summary) {
+  const pane = document.getElementById('stream-pane');
+  // Seal current text so next text starts a new block
+  pane.querySelector('.stream-text')?.classList.remove('stream-text');
+
+  const el = document.createElement('div');
+  el.className = 'flex items-start gap-2 bg-slate-800 rounded-lg px-3 py-2';
+  el.innerHTML = `
+    <span class="text-amber-400 font-semibold mono flex-shrink-0">▶ ${esc(name)}</span>
+    <span class="text-slate-400 mono break-all">${esc(summary)}</span>
+  `;
+  pane.appendChild(el);
+  pane.scrollTop = pane.scrollHeight;
+}
+
+/* ── UI state ───────────────────────────────────────────────────────── */
+function setRunning(yes) {
+  running = yes;
+  document.getElementById('submit-btn').disabled = yes;
+  document.getElementById('btn-text').classList.toggle('hidden', yes);
+  document.getElementById('btn-spinner').classList.toggle('hidden', !yes);
+  document.getElementById('prompt-input').disabled = yes;
+  const chips = document.getElementById('chips');
+  chips.style.opacity = yes ? '0.4' : '1';
+  chips.style.pointerEvents = yes ? 'none' : '';
+}
+
+function showError(msg) {
+  document.getElementById('error-text').textContent = msg;
+  document.getElementById('error-banner').classList.remove('hidden');
+  setTimeout(() => document.getElementById('error-banner').classList.add('hidden'), 10000);
+}
+
+function hideError() {
+  document.getElementById('error-banner').classList.add('hidden');
+}
+
+/* ── Helpers ────────────────────────────────────────────────────────── */
+async function fetchJSON(url, opts) {
+  const res = await fetch(url, opts);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(body.detail || res.statusText);
+  }
+  return res.json();
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+function fmtDate(iso) {
+  try {
+    const s = iso.endsWith('Z') ? iso : iso + 'Z';
+    return new Date(s).toLocaleString(undefined, {
+      month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'
+    });
+  } catch { return iso; }
+}
+
+function highlightAll() {
+  requestAnimationFrame(() => { if (window.Prism) Prism.highlightAll(); });
+}
+</script>
+</body>
+</html>
