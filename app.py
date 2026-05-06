@@ -35,7 +35,7 @@ FAVICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
 </svg>"""
 
 # Bump this string whenever the tool list or system prompt changes to force agent recreation.
-TOOLS_VERSION = "v4-dual-path"
+TOOLS_VERSION = "v5-conversational"
 
 SUBMIT_CARD_TOOL = {
     "type": "custom",
@@ -165,7 +165,9 @@ print(json.dumps(payload))
 - ALWAYS actually run bash commands — never simulate output
 - NEVER manually type base64 strings — always let Python encode them
 - For chart and widget, do NOT include image_b64/html_b64 in submit_card — the system handles it
-- Call `submit_card` EXACTLY ONCE as your very last action
+- Call `submit_card` EXACTLY ONCE as your very last action — even for simple questions
+- For factual or conversational questions (e.g. "what is today's date?"), use type="research",
+  put the answer in payload.summary, and leave citations as []
 - Keep titles to 5-8 words
 """
 
@@ -458,18 +460,29 @@ def run_agent_session(session_id: str, prompt: str):
                         card_spec_from_tool["payload"] = payload
                         card = _save_card(prompt, card_spec_from_tool, tool_trace, full_message)
                     else:
-                        logger.warning("submit_card not called; falling back to <card_spec> regex")
+                        logger.warning("submit_card not called; trying <card_spec> regex fallback")
                         card = _parse_and_save_card(prompt, full_message, tool_trace)
+                        # Last-resort: agent gave a plain-text answer (e.g. a simple question).
+                        # Wrap the response in a research card so it's never a dead end.
+                        if not card and full_message.strip():
+                            logger.info("Wrapping plain-text response as research card")
+                            title = prompt.strip()[:60]
+                            if len(prompt.strip()) > 60:
+                                title += "…"
+                            card = _save_card(prompt, {
+                                "type": "research",
+                                "title": title,
+                                "payload": {
+                                    "summary": full_message.strip(),
+                                    "citations": [],
+                                },
+                            }, tool_trace, full_message)
                     if card:
                         push({"type": "card.created", "card": card})
                     else:
                         push({
                             "type": "error",
-                            "message": (
-                                "Agent did not submit a card. "
-                                "It may not have called submit_card, or the payload was invalid. "
-                                "Check server logs for details."
-                            ),
+                            "message": "Agent produced no response. Check server logs.",
                         })
                     break
 
