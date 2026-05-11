@@ -52,6 +52,10 @@ function getModel() {
   return ($("#model-input").value || "").trim() || "claude-haiku-4-5-20251001";
 }
 
+function getProxyUrl() {
+  return ($("#proxy-url-input")?.value || "").trim().replace(/\/$/, "");
+}
+
 function updateKeyWarning() {
   const hasKey = getApiKey().startsWith("sk-");
   $("#key-warning").classList.toggle("d-none", hasKey);
@@ -232,7 +236,10 @@ function clearAgentCacheEntry(apiKey) {
 async function getOrCreateAgent(apiKey, model) {
   const suffix = apiKey.slice(-8);
   const cache = getAgentCache();
-  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+  const proxyUrl = getProxyUrl();
+  const clientOptions = { apiKey, dangerouslyAllowBrowser: true };
+  if (proxyUrl) clientOptions.baseURL = proxyUrl;
+  const client = new Anthropic(clientOptions);
 
   if (cache[suffix]?.model === model) {
     return { client, agentId: cache[suffix].agentId, envId: cache[suffix].envId };
