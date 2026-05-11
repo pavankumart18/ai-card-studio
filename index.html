@@ -1,967 +1,279 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI Card Studio</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f172a'/%3E%3Crect x='8' y='8' width='48' height='48' rx='10' fill='%236366f1'/%3E%3Ctext x='32' y='41' text-anchor='middle' font-family='Arial,sans-serif' font-size='22' font-weight='700' fill='white'%3ECS%3C/text%3E%3C/svg%3E" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  <meta name="description" content="Create visual artifacts with Claude Managed Agents — charts, widgets, data analysis, research, and code execution in real cloud containers.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiMwZjE3MmEiLz48cmVjdCB4PSI4IiB5PSI4IiB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHJ4PSIxMCIgZmlsbD0iIzYzNjZmMSIvPjx0ZXh0IHg9IjMyIiB5PSI0MSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IndoaXRlIj5DUzwvdGV4dD48L3N2Zz4=">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/styles/github-dark.min.css" crossorigin="anonymous">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Inter', sans-serif; }
     .mono { font-family: 'JetBrains Mono', monospace; }
 
-    .card-enter {
-      animation: cardEnter 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-    @keyframes cardEnter {
-      from { opacity: 0; transform: translateY(-18px) scale(0.97); }
+    /* Card enter animation */
+    .card-enter { animation: cardSlideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes cardSlideIn {
+      from { opacity: 0; transform: translateY(-16px) scale(0.97); }
       to   { opacity: 1; transform: translateY(0)    scale(1); }
     }
 
-    .badge-chart    { background:#dbeafe; color:#1d4ed8; }
-    .badge-widget   { background:#ede9fe; color:#6d28d9; }
-    .badge-data     { background:#dcfce7; color:#15803d; }
-    .badge-research { background:#fef3c7; color:#b45309; }
-    .badge-code     { background:#ffe4e6; color:#be123c; }
-    .badge-unknown  { background:#f3f4f6; color:#374151; }
+    /* Card type badges */
+    .badge-chart    { background: #dbeafe !important; color: #1d4ed8 !important; }
+    .badge-widget   { background: #ede9fe !important; color: #6d28d9 !important; }
+    .badge-data     { background: #dcfce7 !important; color: #15803d !important; }
+    .badge-research { background: #fef3c7 !important; color: #b45309 !important; }
+    .badge-code     { background: #ffe4e6 !important; color: #be123c !important; }
 
-    .tool-bar { border-left: 2px solid #6366f1; }
-    .tool-bar-success { border-left: 2px solid #22c55e; }
-
-    #stream-pane::-webkit-scrollbar { width: 4px; }
-    #stream-pane::-webkit-scrollbar-track { background: #1e293b; }
-    #stream-pane::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
-
-    #history-list::-webkit-scrollbar { width: 4px; }
-    #history-list::-webkit-scrollbar-track { background: #f1f5f9; }
-    #history-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
-
-    .data-table th {
-      background: #f8fafc; font-weight: 600; color: #475569;
-      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;
-    }
-    .data-table td { border-top: 1px solid #f1f5f9; }
-    .data-table tr:hover td { background: #f8fafc; }
-
-    iframe.widget-frame { border: none; background: #fff; }
-
-    .spinner {
-      width: 16px; height: 16px;
-      border: 2px solid rgba(255,255,255,0.3);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.65s linear infinite;
-      display: inline-block; vertical-align: middle;
-    }
-    .spinner-sm {
-      width: 12px; height: 12px;
-      border: 2px solid rgba(99,102,241,0.3);
-      border-top-color: #6366f1;
-      border-radius: 50%;
-      animation: spin 0.65s linear infinite;
-      display: inline-block; vertical-align: middle;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
+    /* Pulse dot */
     .pulse-dot {
-      width: 7px; height: 7px; border-radius: 50%; background: #22c55e;
-      animation: pdot 1.5s ease infinite;
+      width: 8px; height: 8px; border-radius: 50%; background: #22c55e;
+      animation: pdot 1.5s ease infinite; display: inline-block;
     }
     @keyframes pdot {
-      0%,100% { opacity:1; transform:scale(1); }
-      50%      { opacity:.35; transform:scale(.75); }
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.35; transform: scale(0.75); }
     }
 
-    pre[class*=language-] { margin: 0 !important; border-radius: 0 !important; }
-    code[class*=language-] { font-family: 'JetBrains Mono', monospace !important; font-size: 0.72rem !important; }
+    /* Stream pane */
+    #stream-content::-webkit-scrollbar { width: 4px; }
+    #stream-content::-webkit-scrollbar-track { background: #1e293b; }
+    #stream-content::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
 
-    .history-event { border-left: 2px solid #e2e8f0; padding-left: 8px; }
-    .history-item { transition: background 0.15s; }
-    .history-item:hover { background: #f8fafc; }
+    .tool-entry { border-left: 3px solid #6366f1; }
+    .tool-entry-success { border-left: 3px solid #22c55e; }
 
-    .error-item { animation: fadeIn 0.2s ease; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    /* Data tables */
+    .data-table th {
+      font-weight: 600; font-size: 0.7rem;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+
+    /* Widget iframe */
+    iframe.widget-frame { border: none; border-radius: 0.5rem; }
+
+    /* Code block styling */
+    pre.hljs { margin: 0 !important; border-radius: 0 !important; }
+    code.hljs { font-family: 'JetBrains Mono', monospace !important; font-size: 0.75rem !important; }
+
+    /* Demo card hover */
+    .demo-card { transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; }
+    .demo-card:hover { transform: translateY(-4px); box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important; }
+
+    /* Generated card hover */
+    .gen-card { transition: box-shadow 0.2s; }
+    .gen-card:hover { box-shadow: 0 4px 15px rgba(0,0,0,0.08) !important; }
+
+    /* Key warning shimmer */
+    .key-warning { animation: shimmer 3s ease infinite; }
+    @keyframes shimmer {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.85; }
+    }
   </style>
 </head>
-<body class="bg-slate-50 min-h-screen">
 
-<!-- ── HEADER ─────────────────────────────────────────────────────── -->
-<header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
-  <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <div class="w-9 h-9 rounded-xl bg-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-        <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-        </svg>
+<body>
+  <!-- ── NAVBAR ────────────────────────────────────────────────────── -->
+  <nav class="navbar navbar-expand-lg bg-body-tertiary shadow-sm" data-bs-theme="dark">
+    <div class="container-fluid">
+      <a class="navbar-brand d-flex align-items-center gap-2" href=".">
+        <div class="d-flex align-items-center justify-content-center rounded-3 bg-primary" style="width:32px;height:32px;">
+          <i class="bi bi-boxes text-white"></i>
+        </div>
+        <span class="fw-semibold">AI Card Studio</span>
+      </a>
+
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navContent">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navContent">
+        <div class="ms-auto d-flex align-items-center gap-2">
+          <!-- Status -->
+          <span id="nav-status" class="d-flex align-items-center gap-1 text-muted small mono me-2">
+            <span class="pulse-dot"></span>
+            <span id="nav-model-label" class="d-none d-lg-inline">Ready</span>
+          </span>
+
+          <!-- Settings toggle -->
+          <button class="btn btn-outline-light btn-sm" type="button" onclick="document.getElementById('settings-details').open = !document.getElementById('settings-details').open" title="Settings">
+            <i class="bi bi-gear"></i>
+            <span class="d-lg-none ms-1">Settings</span>
+          </button>
+
+          <!-- Dark mode toggle -->
+          <div class="nav-item dropdown">
+            <button class="dark-theme-toggle btn btn-outline-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Toggle theme">
+              <i class="bi bi-circle-half"></i>
+              <span class="d-lg-none ms-1">Theme</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><button class="dropdown-item" data-bs-theme-value="light"><i class="me-2 bi bi-sun-fill"></i> Light</button></li>
+              <li><button class="dropdown-item" data-bs-theme-value="dark"><i class="me-2 bi bi-moon-stars-fill"></i> Dark</button></li>
+              <li><button class="dropdown-item" data-bs-theme-value="auto"><i class="me-2 bi bi-circle-half"></i> Auto</button></li>
+            </ul>
+          </div>
+        </div>
       </div>
+    </div>
+  </nav>
+
+  <!-- ── HERO ──────────────────────────────────────────────────────── -->
+  <div class="container mt-4">
+    <h1 class="display-5 fw-bold text-center mb-2">
+      <i class="bi bi-boxes text-primary me-2"></i>AI Card Studio
+    </h1>
+    <p class="text-center text-body-secondary mb-4" style="max-width:600px;margin:auto;">
+      Create charts, widgets, data analysis, web research, and executable code — all produced by a real Claude agent running in a cloud container.
+    </p>
+  </div>
+
+  <!-- ── API KEY WARNING ───────────────────────────────────────────── -->
+  <div class="container">
+    <div id="key-warning" class="alert alert-warning d-flex align-items-center gap-2 key-warning" role="alert">
+      <i class="bi bi-key-fill fs-5"></i>
       <div>
-        <h1 class="text-white font-semibold text-base leading-tight">AI Card Studio</h1>
-        <p class="text-slate-400 text-xs">Claude Managed Agents Demo</p>
+        <strong>API Key Required</strong> — Open
+        <a href="#" class="alert-link" onclick="document.getElementById('settings-details').open = true; document.getElementById('api-key-input').focus(); return false;">Settings</a>
+        and enter your Anthropic API key to get started.
       </div>
     </div>
-    <div class="flex items-center gap-3">
-      <span class="text-xs text-slate-500 hidden sm:inline mono">claude-haiku-4-5</span>
-      <div id="status-dot" class="pulse-dot ml-1"></div>
-    </div>
   </div>
-</header>
 
-<!-- ── PROMPT BAR ──────────────────────────────────────────────────── -->
-<div class="max-w-6xl mx-auto px-6 pt-8 pb-3">
-  <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-    <div class="flex gap-3 items-center">
-      <!-- Attach file -->
-      <button onclick="triggerFileUpload()" title="Attach file for agent to use"
-        class="text-slate-400 hover:text-indigo-500 transition-colors flex-shrink-0 p-1 rounded-lg hover:bg-indigo-50">
-        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
-        </svg>
-      </button>
-      <input id="file-input" type="file" class="hidden" onchange="handleFileSelect(event)" />
-
-      <input
-        id="prompt-input"
-        type="text"
-        placeholder="Describe what you want to create…"
-        class="flex-1 text-slate-800 placeholder-slate-400 text-sm outline-none bg-transparent min-w-0"
-      />
-      <button id="submit-btn" onclick="submitPrompt()"
-        class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-60 text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors flex-shrink-0">
-        <span id="btn-text">Generate</span>
-        <span id="btn-spinner" class="spinner hidden"></span>
-      </button>
-    </div>
-
-    <!-- Attached files -->
-    <div id="file-badges" class="flex flex-wrap gap-2 mt-3 hidden"></div>
-
-    <!-- Example chips -->
-    <div id="chips" class="flex flex-wrap gap-2 mt-4">
-      <button onclick="useChip(this)" class="text-xs px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 rounded-full border border-slate-200 hover:border-indigo-200 transition-colors">Plot Fibonacci sequence up to 100 as a bar chart</button>
-      <button onclick="useChip(this)" class="text-xs px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 rounded-full border border-slate-200 hover:border-indigo-200 transition-colors">Build me a tip calculator widget</button>
-      <button onclick="useChip(this)" class="text-xs px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 rounded-full border border-slate-200 hover:border-indigo-200 transition-colors">Fetch Bitcoin price from CoinGecko and show a 7-day analysis</button>
-      <button onclick="useChip(this)" class="text-xs px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 rounded-full border border-slate-200 hover:border-indigo-200 transition-colors">Research Anthropic's Managed Agents and summarize</button>
-      <button onclick="useChip(this)" class="text-xs px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 rounded-full border border-slate-200 hover:border-indigo-200 transition-colors">Write a Python script that finds all primes under 1000 and run it</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── SESSION HISTORY ─────────────────────────────────────────────── -->
-<div class="max-w-6xl mx-auto px-6 pb-3" id="history-section" style="display:none">
-  <button onclick="toggleHistory()"
-    class="flex items-center gap-2 text-xs text-slate-500 hover:text-slate-700 transition-colors py-1">
-    <svg id="history-chevron" class="w-3.5 h-3.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-    </svg>
-    <span id="history-toggle-text">Session History (0)</span>
-  </button>
-  <div id="history-panel" class="hidden mt-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-    <div id="history-list" class="divide-y divide-slate-100 max-h-72 overflow-y-auto"></div>
-  </div>
-</div>
-
-<!-- ── ERROR LOG ───────────────────────────────────────────────────── -->
-<div id="error-log-section" class="max-w-6xl mx-auto px-6 pb-3 space-y-2 hidden"></div>
-
-<!-- ── STREAM PANE ─────────────────────────────────────────────────── -->
-<div id="stream-wrapper" class="max-w-6xl mx-auto px-6 pb-4 hidden">
-  <div class="bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden">
-    <div class="flex items-center gap-3 px-5 py-3 border-b border-slate-700">
-      <div class="pulse-dot"></div>
-      <span class="text-slate-300 text-xs font-medium">Agent running in cloud container…</span>
-      <span id="stream-elapsed" class="ml-auto text-slate-500 text-xs mono"></span>
-    </div>
-    <div id="stream-pane" class="p-4 space-y-2 overflow-y-auto max-h-64 text-xs"></div>
-  </div>
-</div>
-
-<!-- ── CARDS GRID ─────────────────────────────────────────────────── -->
-<div class="max-w-6xl mx-auto px-6 pb-12">
-  <div id="empty-state" class="hidden text-center py-20">
-    <div class="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-      <svg class="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-      </svg>
-    </div>
-    <p class="text-slate-400 text-sm">No cards yet — enter a prompt to generate your first card.</p>
-  </div>
-  <div id="cards-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"></div>
-</div>
-
-<!-- ── MODAL ──────────────────────────────────────────────────────── -->
-<div id="modal" class="fixed inset-0 z-50 hidden bg-slate-900/60 flex items-center justify-center p-4"
-     style="backdrop-filter:blur(4px)" onclick="closeModalOutside(event)">
-  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col">
-    <div class="flex items-start justify-between px-6 py-5 border-b border-slate-100 flex-shrink-0">
-      <div class="min-w-0">
-        <div id="modal-badge" class="inline-block text-xs font-semibold px-2.5 py-1 rounded-full mb-2"></div>
-        <h2 id="modal-title" class="text-slate-800 font-semibold text-base leading-snug"></h2>
-        <p id="modal-prompt" class="text-slate-500 text-xs mt-1 italic"></p>
-      </div>
-      <button onclick="closeModal()" class="ml-4 text-slate-400 hover:text-slate-600 transition-colors flex-shrink-0 p-1">
-        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-        </svg>
-      </button>
-    </div>
-    <div class="px-6 py-5 overflow-y-auto flex-1">
-      <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Tool Trace — Real Container Execution</p>
-      <div id="modal-trace" class="space-y-2"></div>
-      <p id="modal-empty-trace" class="hidden text-slate-400 text-sm">No tool calls recorded.</p>
-    </div>
-    <div class="px-6 py-4 border-t border-slate-100 flex items-center justify-between flex-shrink-0">
-      <span id="modal-date" class="text-xs text-slate-400 mono"></span>
-      <button id="modal-delete-btn" onclick="deleteFromModal()"
-        class="text-xs text-red-500 hover:text-red-600 font-medium transition-colors">Delete card</button>
-    </div>
-  </div>
-</div>
-
-<script>
-/* ═══════════════════════════════════════════════════════════════════
-   State
-═══════════════════════════════════════════════════════════════════ */
-const cardsMap = {};
-let running     = false;
-let modalCardId = null;
-let streamTimer = null;
-
-// Files pending upload / already uploaded
-// [{name, file_id, status: 'uploading'|'ready'|'error', error?}]
-let pendingFiles = [];
-
-const HISTORY_KEY = 'cs_sessions';
-const MAX_HISTORY = 30;
-let currentSession = null; // active session log entry
-
-/* ═══════════════════════════════════════════════════════════════════
-   Boot
-═══════════════════════════════════════════════════════════════════ */
-loadCards();
-renderHistory();
-
-/* ═══════════════════════════════════════════════════════════════════
-   Load persisted cards from server
-═══════════════════════════════════════════════════════════════════ */
-async function loadCards() {
-  try {
-    const { cards } = await fetchJSON('/api/cards');
-    const grid = document.getElementById('cards-grid');
-    grid.innerHTML = '';
-    if (cards.length === 0) {
-      document.getElementById('empty-state').classList.remove('hidden');
-    } else {
-      document.getElementById('empty-state').classList.add('hidden');
-      cards.forEach(c => { cardsMap[c.id] = c; grid.appendChild(buildCard(c)); });
-      highlightAll();
-    }
-  } catch (e) {
-    logError('Could not load cards: ' + e.message);
-  }
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   Session History (localStorage)
-═══════════════════════════════════════════════════════════════════ */
-function getHistory() {
-  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
-  catch { return []; }
-}
-
-function saveHistory(sessions) {
-  const trimmed = sessions.slice(0, MAX_HISTORY);
-  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(trimmed)); } catch {}
-}
-
-function historyStart(sessionId, prompt) {
-  const entry = {
-    id: sessionId,
-    prompt,
-    ts: Date.now(),
-    events: [],
-    status: 'running',
-    cardId: null, cardTitle: null, cardType: null, errorMsg: null,
-  };
-  currentSession = entry;
-  const sessions = [entry, ...getHistory()];
-  saveHistory(sessions);
-  return entry;
-}
-
-function historyAddEvent(sessionId, evt) {
-  const sessions = getHistory();
-  const s = sessions.find(x => x.id === sessionId);
-  if (!s) return;
-  let label = '';
-  if (evt.type === 'agent.message')    label = evt.text.slice(0, 120);
-  if (evt.type === 'agent.tool_use')   label = `▶ ${evt.name}: ${(evt.summary||'').slice(0,80)}`;
-  if (evt.type === 'agent.submit_card') label = `✓ submit_card: ${evt.card_type} — "${evt.title}"`;
-  if (evt.type === 'error')            label = `✕ ${evt.message.slice(0,100)}`;
-  if (label) s.events.push({ type: evt.type, label, ts: Date.now() });
-  saveHistory(sessions);
-}
-
-function historyFinish(sessionId, { cardId, cardTitle, cardType, error } = {}) {
-  const sessions = getHistory();
-  const s = sessions.find(x => x.id === sessionId);
-  if (!s) return;
-  s.status = error ? 'error' : 'success';
-  s.cardId = cardId || null;
-  s.cardTitle = cardTitle || null;
-  s.cardType = cardType || null;
-  s.errorMsg = error || null;
-  saveHistory(sessions);
-  currentSession = null;
-  renderHistory();
-}
-
-function renderHistory() {
-  const sessions = getHistory();
-  const section = document.getElementById('history-section');
-  const list = document.getElementById('history-list');
-  if (!sessions.length) { section.style.display = 'none'; return; }
-  section.style.display = '';
-  document.getElementById('history-toggle-text').textContent = `Session History (${sessions.length})`;
-
-  list.innerHTML = sessions.map(s => {
-    const ts = new Date(s.ts).toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
-    const statusBadge = s.status === 'success'
-      ? `<span class="text-xs text-green-600 font-medium">${esc(s.cardType || 'done')}</span>`
-      : s.status === 'error'
-      ? `<span class="text-xs text-red-500 font-medium">error</span>`
-      : `<span class="text-xs text-amber-500 font-medium">running…</span>`;
-
-    const cardLink = s.cardId && cardsMap[s.cardId]
-      ? `<button onclick="scrollToCard('${esc(s.cardId)}')" class="text-xs text-indigo-500 hover:underline ml-2">↗ view card</button>`
-      : '';
-
-    const eventsHtml = s.events.length
-      ? `<div class="history-events hidden px-4 pb-3 space-y-1" id="hevt-${esc(s.id)}">
-          ${s.events.map(e => `<div class="history-event text-xs text-slate-500 mono py-0.5">${esc(e.label)}</div>`).join('')}
-        </div>`
-      : '';
-
-    return `
-      <div class="history-item">
-        <div class="flex items-start gap-3 px-4 py-3 cursor-pointer" onclick="toggleHistoryEntry('${esc(s.id)}')">
-          <div class="flex-1 min-w-0">
-            <p class="text-sm text-slate-700 truncate" title="${esc(s.prompt)}">${esc(s.prompt)}</p>
-            <div class="flex items-center gap-2 mt-0.5">
-              <span class="text-xs text-slate-400 mono">${ts}</span>
-              ${statusBadge}
-              ${cardLink}
+  <!-- ── SETTINGS ──────────────────────────────────────────────────── -->
+  <div class="container">
+    <form id="settings-form">
+      <details id="settings-details" class="card rounded-3 shadow-sm mb-4">
+        <summary class="card-header d-flex justify-content-between align-items-center" style="cursor:pointer;">
+          <div><i class="bi bi-gear me-2"></i> Settings</div>
+          <button type="reset" class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation()">Reset</button>
+        </summary>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label fw-medium" for="api-key-input">
+                <i class="bi bi-key me-1"></i> Anthropic API Key
+              </label>
+              <input class="form-control font-monospace" id="api-key-input" name="api_key" type="password"
+                     placeholder="sk-ant-api03-…" autocomplete="off">
+              <div class="form-text">Your key is stored only in your browser's localStorage. Never sent anywhere except the local server.</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-medium" for="model-input">
+                <i class="bi bi-cpu me-1"></i> Model
+              </label>
+              <input class="form-control" id="model-input" name="model" list="model-list"
+                     placeholder="Select a model…" value="claude-haiku-4-5-20251001">
+              <datalist id="model-list">
+                <option value="claude-haiku-4-5-20251001"></option>
+                <option value="claude-sonnet-4-5-20250514"></option>
+              </datalist>
             </div>
           </div>
-          ${s.events.length ? `<svg class="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>` : ''}
         </div>
-        ${eventsHtml}
-      </div>`;
-  }).join('');
-}
+      </details>
+    </form>
+  </div>
 
-function toggleHistory() {
-  const panel = document.getElementById('history-panel');
-  const chevron = document.getElementById('history-chevron');
-  const hidden = panel.classList.toggle('hidden');
-  chevron.style.transform = hidden ? '' : 'rotate(90deg)';
-}
-
-function toggleHistoryEntry(sessionId) {
-  const el = document.getElementById(`hevt-${sessionId}`);
-  if (el) el.classList.toggle('hidden');
-}
-
-function scrollToCard(cardId) {
-  const el = document.querySelector(`[data-card-id="${cardId}"]`);
-  if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   File upload
-═══════════════════════════════════════════════════════════════════ */
-function triggerFileUpload() {
-  document.getElementById('file-input').click();
-}
-
-async function handleFileSelect(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  event.target.value = '';
-
-  const entry = { name: file.name, file_id: null, status: 'uploading' };
-  pendingFiles.push(entry);
-  renderFileBadges();
-
-  try {
-    const form = new FormData();
-    form.append('file', file);
-    const res = await fetch('/api/upload', { method: 'POST', body: form });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(body.detail || res.statusText);
-    }
-    const { file_id } = await res.json();
-    entry.file_id = file_id;
-    entry.status = 'ready';
-  } catch (e) {
-    entry.status = 'error';
-    entry.error = e.message;
-    logError(`File upload failed (${file.name}): ${e.message}`);
-  }
-  renderFileBadges();
-}
-
-function removeFile(idx) {
-  pendingFiles.splice(idx, 1);
-  renderFileBadges();
-}
-
-function renderFileBadges() {
-  const container = document.getElementById('file-badges');
-  if (!pendingFiles.length) { container.classList.add('hidden'); return; }
-  container.classList.remove('hidden');
-  container.innerHTML = pendingFiles.map((f, i) => {
-    const color = f.status === 'ready'    ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                : f.status === 'error'    ? 'bg-red-50 border-red-200 text-red-600'
-                :                          'bg-slate-100 border-slate-200 text-slate-600';
-    const icon  = f.status === 'uploading' ? '<span class="spinner-sm mr-1"></span>'
-                : f.status === 'error'     ? '✕ '
-                :                            '📎 ';
-    return `
-      <div class="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${color}">
-        ${icon}${esc(f.name)}
-        <button onclick="removeFile(${i})" class="ml-0.5 opacity-60 hover:opacity-100 font-bold">×</button>
-      </div>`;
-  }).join('');
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   Prompt submission
-═══════════════════════════════════════════════════════════════════ */
-function useChip(el) {
-  document.getElementById('prompt-input').value = el.textContent.trim();
-  document.getElementById('prompt-input').focus();
-}
-
-document.getElementById('prompt-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !running) submitPrompt();
-});
-
-async function submitPrompt() {
-  if (running) return;
-  const prompt = document.getElementById('prompt-input').value.trim();
-  if (!prompt) return;
-
-  const uploadingFile = pendingFiles.find(f => f.status === 'uploading');
-  if (uploadingFile) { logError('File is still uploading — please wait.'); return; }
-
-  const file_ids = pendingFiles.filter(f => f.status === 'ready').map(f => f.file_id);
-
-  setRunning(true);
-  clearStream();
-  showStream();
-
-  try {
-    const { session_id } = await fetchJSON('/api/prompt', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, file_ids }),
-    });
-    historyStart(session_id, prompt);
-    openStream(session_id, prompt);
-  } catch (e) {
-    logError(e.message);
-    setRunning(false);
-    hideStream();
-  }
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   SSE stream
-═══════════════════════════════════════════════════════════════════ */
-function openStream(sessionId, prompt) {
-  const es = new EventSource(`/api/stream/${sessionId}`);
-
-  es.onmessage = ({ data }) => {
-    let evt;
-    try { evt = JSON.parse(data); } catch { return; }
-
-    historyAddEvent(sessionId, evt);
-
-    switch (evt.type) {
-      case 'agent.message':
-        streamText(evt.text);
-        break;
-      case 'agent.tool_use':
-        streamTool(evt.name, evt.summary);
-        break;
-      case 'agent.submit_card':
-        streamSubmitCard(evt.card_type, evt.title);
-        break;
-      case 'card.created':
-        es.close();
-        onCardCreated(evt.card, sessionId);
-        break;
-      case 'error':
-        es.close();
-        logError(evt.message);
-        historyFinish(sessionId, { error: evt.message });
-        setRunning(false);
-        hideStream();
-        break;
-    }
-  };
-
-  es.onerror = () => {
-    es.close();
-    if (running) {
-      const msg = 'Server connection lost. Check if the backend is running.';
-      logError(msg);
-      historyFinish(sessionId, { error: msg });
-      setRunning(false);
-      hideStream();
-    }
-  };
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   Card created
-═══════════════════════════════════════════════════════════════════ */
-function onCardCreated(card, sessionId) {
-  setRunning(false);
-  document.getElementById('prompt-input').value = '';
-  pendingFiles = [];
-  renderFileBadges();
-
-  historyFinish(sessionId, {
-    cardId: card.id, cardTitle: card.title, cardType: card.type,
-  });
-
-  setTimeout(() => {
-    hideStream();
-    cardsMap[card.id] = card;
-    const grid = document.getElementById('cards-grid');
-    document.getElementById('empty-state').classList.add('hidden');
-    const el = buildCard(card);
-    el.classList.add('card-enter');
-    grid.prepend(el);
-    highlightAll();
-    renderHistory();
-  }, 700);
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   Build a card element
-═══════════════════════════════════════════════════════════════════ */
-function buildCard(card) {
-  const wrap = document.createElement('div');
-  wrap.className = 'bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col';
-  wrap.dataset.cardId = card.id;
-
-  wrap.innerHTML = `
-    <div class="flex items-start justify-between px-5 pt-5 pb-3 gap-3">
-      <div class="min-w-0 flex-1">
-        <span class="badge badge-${esc(card.type)} text-xs font-semibold px-2.5 py-1 rounded-full">${esc(card.type)}</span>
-        <h3 class="text-slate-800 font-semibold text-sm mt-2 leading-snug">${esc(card.title)}</h3>
-      </div>
-      <button data-del="${esc(card.id)}"
-        class="text-slate-300 hover:text-red-400 transition-colors flex-shrink-0 pt-1" title="Delete">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-        </svg>
-      </button>
-    </div>
-    <div class="px-5 pb-4 flex-1 min-w-0 card-content"></div>
-    <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between gap-2">
-      <span class="text-xs text-slate-400 mono flex-shrink-0">${esc(fmtDate(card.created_at))}</span>
-      <div class="flex items-center gap-3">
-        <button data-download="${esc(card.id)}"
-          class="text-xs text-slate-500 hover:text-indigo-600 font-medium transition-colors flex items-center gap-1">
-          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-          </svg>
-          Download
-        </button>
-        <button data-trace="${esc(card.id)}"
-          class="text-xs text-indigo-600 hover:text-indigo-700 font-medium transition-colors">View trace →</button>
+  <!-- ── PROMPT BAR ────────────────────────────────────────────────── -->
+  <div class="container mb-4">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="input-group">
+          <input id="prompt-input" type="text" class="form-control form-control-lg"
+                 placeholder="Describe what you want to create…" autocomplete="off">
+          <button id="submit-btn" class="btn btn-primary btn-lg px-4" type="button">
+            <span id="btn-text"><i class="bi bi-stars me-1"></i> Generate</span>
+            <span id="btn-spinner" class="d-none">
+              <span class="spinner-border spinner-border-sm me-1"></span> Running…
+            </span>
+          </button>
+        </div>
       </div>
     </div>
-  `;
+  </div>
 
-  const contentSlot = wrap.querySelector('.card-content');
-  try {
-    contentSlot.innerHTML = renderPayload(card.type, card.payload);
-  } catch (e) {
-    contentSlot.innerHTML = `<p class="text-xs text-red-400">Render error: ${esc(e.message)}</p>`;
-  }
+  <!-- ── DEMO CARDS ────────────────────────────────────────────────── -->
+  <div class="container mb-4">
+    <div id="demo-cards" class="row g-3 justify-content-center"></div>
+  </div>
 
-  wrap.querySelector('[data-del]').addEventListener('click', () => deleteCard(card.id));
-  wrap.querySelector('[data-trace]').addEventListener('click', () => openModal(card.id));
-  wrap.querySelector('[data-download]').addEventListener('click', () => downloadCard(card));
-
-  return wrap;
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   Payload renderers
-═══════════════════════════════════════════════════════════════════ */
-function renderPayload(type, p) {
-  switch (type) {
-    case 'chart':    return renderChart(p);
-    case 'widget':   return renderWidget(p);
-    case 'data':     return renderData(p);
-    case 'research': return renderResearch(p);
-    case 'code':     return renderCode(p);
-    default: return `<pre class="text-xs text-slate-400 mono overflow-x-auto">${esc(JSON.stringify(p,null,2))}</pre>`;
-  }
-}
-
-function renderChart(p) {
-  const b64 = (p.image_b64 || '').replace(/\s/g, '');
-  if (!b64) return '<p class="text-slate-400 text-sm">No image produced.</p>';
-  return `
-    <img src="data:image/png;base64,${b64}"
-         class="w-full rounded-xl object-contain max-h-64 bg-slate-50" alt="Chart" />
-    ${p.description ? `<p class="text-xs text-slate-500 mt-2">${esc(p.description)}</p>` : ''}
-  `;
-}
-
-function renderWidget(p) {
-  const b64 = p.html_b64 || '';
-  const raw = p.html || '';
-  if (!b64 && !raw) return '<p class="text-slate-400 text-sm">No widget data.</p>';
-  let html;
-  try { html = b64 ? atob(b64.replace(/\s/g, '')) : raw; }
-  catch (e) { return `<p class="text-xs text-red-400">Base64 decode error: ${esc(e.message)}</p>`; }
-  const isFullDoc = /^\s*<!doctype|^\s*<html/i.test(html);
-  const srcdoc = isFullDoc ? html
-    : `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:8px;font-family:system-ui,sans-serif;font-size:14px}</style></head><body>${html}</body></html>`;
-  return `<iframe class="widget-frame w-full rounded-xl" sandbox="allow-scripts allow-forms"
-             srcdoc="${esc(srcdoc)}" style="height:268px"></iframe>`;
-}
-
-function renderData(p) {
-  const cols = p.columns || [];
-  const rows = p.rows || [];
-  if (!cols.length && !rows.length) return '<p class="text-slate-400 text-sm">No data.</p>';
-  const thead = cols.map(c => `<th class="px-3 py-2 text-left whitespace-nowrap">${esc(String(c))}</th>`).join('');
-  const preview = rows.slice(0, 10);
-  const tbody = preview.map(r =>
-    `<tr>${r.map(v => `<td class="px-3 py-2 text-slate-700">${esc(String(v))}</td>`).join('')}</tr>`
-  ).join('');
-  const more = rows.length > 10 ? `<p class="text-xs text-slate-400 mt-1.5">…and ${rows.length - 10} more rows</p>` : '';
-  return `
-    <div class="overflow-x-auto rounded-xl border border-slate-100">
-      <table class="data-table w-full text-xs">${thead ? `<thead><tr>${thead}</tr></thead>` : ''}<tbody>${tbody}</tbody></table>
-    </div>
-    ${more}
-    ${p.insight ? `<p class="text-sm text-slate-600 mt-3">💡 ${esc(p.insight)}</p>` : ''}
-  `;
-}
-
-function renderResearch(p) {
-  const cites = (p.citations || []).slice(0, 8);
-  const citesHtml = cites.length ? `
-    <div class="mt-3 space-y-1 pt-3 border-t border-slate-100">
-      ${cites.map(c => `
-        <a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer"
-           class="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-700 hover:underline">
-          <svg class="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-          </svg>
-          ${esc(c.title || c.url)}
-        </a>`).join('')}
-    </div>` : '';
-  return `<div class="text-sm text-slate-700 leading-relaxed overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:7;-webkit-box-orient:vertical">${esc(p.summary||'').replace(/\n/g,'<br>')}</div>${citesHtml}`;
-}
-
-function renderCode(p) {
-  const lang = p.language || 'python';
-  const code = p.code || '';
-  const out  = p.stdout || '';
-  return `
-    <div class="rounded-xl overflow-hidden border border-slate-200">
-      <div class="bg-slate-800 px-3 py-1.5 flex items-center gap-2">
-        <div class="flex gap-1"><div class="w-2.5 h-2.5 rounded-full bg-red-500/60"></div><div class="w-2.5 h-2.5 rounded-full bg-yellow-500/60"></div><div class="w-2.5 h-2.5 rounded-full bg-green-500/60"></div></div>
-        <span class="text-xs text-slate-400 mono">${esc(lang)}</span>
+  <!-- ── STREAM PANE ───────────────────────────────────────────────── -->
+  <div id="stream-wrapper" class="container mb-4 d-none">
+    <div class="card bg-dark text-light border-secondary shadow">
+      <div class="card-header d-flex align-items-center gap-2 border-secondary">
+        <span class="pulse-dot"></span>
+        <span class="small text-light-emphasis">Agent running in cloud container…</span>
+        <span id="stream-elapsed" class="ms-auto small mono text-secondary"></span>
       </div>
-      <div class="overflow-x-auto max-h-44"><pre class="!m-0 !rounded-none"><code class="language-${esc(lang)}">${esc(code)}</code></pre></div>
+      <div id="stream-content" class="card-body p-3 overflow-auto" style="max-height:280px;"></div>
     </div>
-    ${out ? `<div class="mt-2 rounded-xl bg-slate-900 p-3 overflow-x-auto">
-      <div class="text-xs text-slate-500 mb-1 mono">stdout</div>
-      <pre class="text-xs text-green-400 mono whitespace-pre-wrap max-h-24 overflow-y-auto">${esc(out)}</pre>
-    </div>` : ''}
-  `;
-}
+  </div>
 
-/* ═══════════════════════════════════════════════════════════════════
-   Download
-═══════════════════════════════════════════════════════════════════ */
-function downloadCard(card) {
-  const slug = card.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const p = card.payload;
-  switch (card.type) {
-    case 'chart':
-      if (!p.image_b64) return;
-      downloadBlob(
-        Uint8Array.from(atob(p.image_b64.replace(/\s/g,'')), c => c.charCodeAt(0)),
-        `${slug}.png`, 'image/png'
-      );
-      break;
-    case 'widget':
-      if (!p.html_b64) return;
-      downloadBlob(
-        Uint8Array.from(atob(p.html_b64.replace(/\s/g,'')), c => c.charCodeAt(0)),
-        `${slug}.html`, 'text/html'
-      );
-      break;
-    case 'code':
-      downloadBlob(
-        new TextEncoder().encode(p.code || ''),
-        `${slug}.py`, 'text/x-python'
-      );
-      break;
-    case 'data': {
-      const cols = (p.columns || []).map(c => `"${String(c).replace(/"/g,'""')}"`);
-      const rowsStr = (p.rows || []).map(r =>
-        r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')
-      );
-      const csv = [cols.join(','), ...rowsStr].join('\n');
-      downloadBlob(new TextEncoder().encode(csv), `${slug}.csv`, 'text/csv');
-      break;
+  <!-- ── ERROR LOG ─────────────────────────────────────────────────── -->
+  <div id="error-section" class="container mb-3 d-none"></div>
+
+  <!-- ── CARDS GRID ────────────────────────────────────────────────── -->
+  <div class="container mb-5">
+    <div id="empty-state" class="text-center py-5 d-none">
+      <i class="bi bi-boxes display-1 text-body-tertiary"></i>
+      <p class="text-body-secondary mt-3">No cards yet — enter a prompt or run a demo to create your first card.</p>
+    </div>
+    <div id="cards-grid" class="row g-4"></div>
+  </div>
+
+  <!-- ── CARD DETAIL MODAL ─────────────────────────────────────────── -->
+  <div class="modal fade" id="card-modal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <span id="modal-badge" class="badge rounded-pill mb-1"></span>
+            <h5 id="modal-title" class="modal-title"></h5>
+            <p id="modal-prompt" class="text-body-secondary small fst-italic mb-0"></p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <h6 class="text-uppercase text-body-tertiary small fw-bold tracking-wider mb-3">
+            <i class="bi bi-terminal me-1"></i> Tool Trace — Real Container Execution
+          </h6>
+          <div id="modal-trace"></div>
+          <p id="modal-empty-trace" class="text-body-secondary d-none">No tool calls recorded.</p>
+        </div>
+        <div class="modal-footer justify-content-between">
+          <span id="modal-date" class="small mono text-body-tertiary"></span>
+          <div class="d-flex gap-2">
+            <button id="modal-delete-btn" type="button" class="btn btn-outline-danger btn-sm">
+              <i class="bi bi-trash me-1"></i> Delete
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCRIPTS ───────────────────────────────────────────────────── -->
+  <script type="importmap">
+    {
+      "imports": {
+        "@anthropic-ai/sdk": "https://esm.sh/@anthropic-ai/sdk",
+        "highlight.js": "https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/+esm",
+        "lit-html": "https://cdn.jsdelivr.net/npm/lit-html@3.3.1/+esm",
+        "lit-html/directives/unsafe-html.js": "https://cdn.jsdelivr.net/npm/lit-html@3.3.1/directives/unsafe-html.js",
+        "marked": "https://cdn.jsdelivr.net/npm/marked@13.0.3/+esm",
+        "saveform": "https://cdn.jsdelivr.net/npm/saveform@1.4.0"
+      }
     }
-    case 'research': {
-      const cites = (p.citations || []).map(c => `- [${c.title || c.url}](${c.url})`).join('\n');
-      const md = `# ${card.title}\n\n${p.summary || ''}\n\n## Sources\n${cites}`;
-      downloadBlob(new TextEncoder().encode(md), `${slug}.md`, 'text/markdown');
-      break;
-    }
-    default:
-      downloadBlob(
-        new TextEncoder().encode(JSON.stringify(p, null, 2)),
-        `${slug}.json`, 'application/json'
-      );
-  }
-}
+  </script>
 
-function downloadBlob(data, filename, mimeType) {
-  const blob = new Blob([data], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   Modal
-═══════════════════════════════════════════════════════════════════ */
-function openModal(cardId) {
-  const card = cardsMap[cardId];
-  if (!card) return;
-  modalCardId = cardId;
-
-  document.getElementById('modal-badge').textContent = card.type;
-  document.getElementById('modal-badge').className =
-    `badge badge-${card.type} inline-block text-xs font-semibold px-2.5 py-1 rounded-full mb-2`;
-  document.getElementById('modal-title').textContent  = card.title;
-  document.getElementById('modal-prompt').textContent = `"${card.prompt}"`;
-  document.getElementById('modal-date').textContent   = fmtDate(card.created_at);
-
-  const trace = card.tool_trace || [];
-  const el = document.getElementById('modal-trace');
-  const empty = document.getElementById('modal-empty-trace');
-  if (!trace.length) {
-    el.innerHTML = ''; empty.classList.remove('hidden');
-  } else {
-    empty.classList.add('hidden');
-    el.innerHTML = trace.map(t => {
-      const isSubmit = t.tool === 'submit_card';
-      const barClass = isSubmit ? 'tool-bar-success' : 'tool-bar';
-      const nameColor = isSubmit ? 'text-green-600' : 'text-indigo-500';
-      return `
-        <div class="${barClass} pl-3 py-1.5 rounded-r-lg bg-slate-50">
-          <span class="${nameColor} text-xs font-semibold mono">▶ ${esc(t.tool)}</span>
-          <span class="text-slate-500 text-xs mono break-all ml-2">${esc(t.input)}</span>
-        </div>`;
-    }).join('');
-  }
-
-  document.getElementById('modal').classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
-}
-
-function closeModal() {
-  document.getElementById('modal').classList.add('hidden');
-  document.body.style.overflow = '';
-  modalCardId = null;
-}
-
-function closeModalOutside(e) {
-  if (e.target === document.getElementById('modal')) closeModal();
-}
-
-function deleteFromModal() {
-  if (modalCardId) { deleteCard(modalCardId); closeModal(); }
-}
-
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
-
-/* ═══════════════════════════════════════════════════════════════════
-   Card deletion
-═══════════════════════════════════════════════════════════════════ */
-async function deleteCard(cardId) {
-  try {
-    await fetch(`/api/cards/${cardId}`, { method: 'DELETE' });
-    delete cardsMap[cardId];
-    document.querySelector(`[data-card-id="${cardId}"]`)?.remove();
-    if (!document.getElementById('cards-grid').children.length) {
-      document.getElementById('empty-state').classList.remove('hidden');
-    }
-  } catch (e) {
-    logError('Delete failed: ' + e.message);
-  }
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   Stream pane
-═══════════════════════════════════════════════════════════════════ */
-function showStream() {
-  document.getElementById('stream-wrapper').classList.remove('hidden');
-  let t = 0;
-  streamTimer = setInterval(() => {
-    document.getElementById('stream-elapsed').textContent = (++t) + 's';
-  }, 1000);
-}
-
-function hideStream() {
-  clearInterval(streamTimer);
-  document.getElementById('stream-wrapper').classList.add('hidden');
-  document.getElementById('stream-elapsed').textContent = '';
-}
-
-function clearStream() {
-  document.getElementById('stream-pane').innerHTML = '';
-}
-
-function streamText(text) {
-  const pane = document.getElementById('stream-pane');
-  let cur = pane.querySelector('.stream-text');
-  if (!cur) {
-    cur = document.createElement('p');
-    cur.className = 'stream-text text-slate-400 leading-relaxed';
-    pane.appendChild(cur);
-  }
-  cur.textContent += text;
-  pane.scrollTop = pane.scrollHeight;
-}
-
-function streamTool(name, summary) {
-  if (name === 'submit_card') return; // handled by streamSubmitCard
-  const pane = document.getElementById('stream-pane');
-  pane.querySelector('.stream-text')?.classList.remove('stream-text');
-  const el = document.createElement('div');
-  el.className = 'flex items-start gap-2 bg-slate-800 rounded-lg px-3 py-2';
-  el.innerHTML = `
-    <span class="text-amber-400 font-semibold mono flex-shrink-0">▶ ${esc(name)}</span>
-    <span class="text-slate-400 mono break-all">${esc(summary)}</span>
-  `;
-  pane.appendChild(el);
-  pane.scrollTop = pane.scrollHeight;
-}
-
-function streamSubmitCard(cardType, title) {
-  const pane = document.getElementById('stream-pane');
-  pane.querySelector('.stream-text')?.classList.remove('stream-text');
-  const el = document.createElement('div');
-  el.className = 'flex items-center gap-2 bg-green-900/30 border border-green-700/40 rounded-lg px-3 py-2';
-  el.innerHTML = `
-    <svg class="w-3.5 h-3.5 text-green-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-    </svg>
-    <span class="text-green-400 font-semibold mono text-xs">submit_card</span>
-    <span class="text-green-300 mono text-xs">${esc(cardType)} — "${esc(title)}"</span>
-  `;
-  pane.appendChild(el);
-  pane.scrollTop = pane.scrollHeight;
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   Error log — persistent, manual-dismiss
-═══════════════════════════════════════════════════════════════════ */
-function logError(msg) {
-  console.error('[CardStudio]', msg);
-  const section = document.getElementById('error-log-section');
-  section.classList.remove('hidden');
-
-  const el = document.createElement('div');
-  el.className = 'error-item bg-red-50 border border-red-200 rounded-xl px-5 py-3 flex items-start gap-3';
-  el.innerHTML = `
-    <svg class="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-    </svg>
-    <p class="text-red-700 text-sm flex-1">${esc(msg)}</p>
-    <button onclick="this.closest('.error-item').remove(); maybeClearErrorSection()"
-      class="text-red-400 hover:text-red-600 flex-shrink-0 transition-colors" title="Dismiss">
-      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-      </svg>
-    </button>
-  `;
-  section.appendChild(el);
-}
-
-function maybeClearErrorSection() {
-  const section = document.getElementById('error-log-section');
-  if (!section.children.length) section.classList.add('hidden');
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   UI state
-═══════════════════════════════════════════════════════════════════ */
-function setRunning(yes) {
-  running = yes;
-  document.getElementById('submit-btn').disabled = yes;
-  document.getElementById('btn-text').classList.toggle('hidden', yes);
-  document.getElementById('btn-spinner').classList.toggle('hidden', !yes);
-  document.getElementById('prompt-input').disabled = yes;
-  const chips = document.getElementById('chips');
-  chips.style.opacity = yes ? '0.4' : '1';
-  chips.style.pointerEvents = yes ? 'none' : '';
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   Helpers
-═══════════════════════════════════════════════════════════════════ */
-async function fetchJSON(url, opts) {
-  const res = await fetch(url, opts);
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(body.detail || res.statusText);
-  }
-  return res.json();
-}
-
-function esc(s) {
-  return String(s)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-
-function fmtDate(iso) {
-  try {
-    const s = iso.endsWith('Z') ? iso : iso + 'Z';
-    return new Date(s).toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
-  } catch { return iso; }
-}
-
-function highlightAll() {
-  requestAnimationFrame(() => { if (window.Prism) Prism.highlightAll(); });
-}
-</script>
+  <script src="https://cdn.jsdelivr.net/npm/@gramex/ui@0.3.1/dist/dark-theme.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  <script type="module" src="script.js"></script>
 </body>
 </html>
