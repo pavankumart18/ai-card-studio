@@ -52,9 +52,7 @@ function getModel() {
   return ($("#model-input").value || "").trim() || "claude-haiku-4-5-20251001";
 }
 
-function getProxyUrl() {
-  return ($("#proxy-url-input")?.value || "").trim().replace(/\/$/, "");
-}
+const PROXY_URL = "https://lucky-scene-c441.pavankumart7052.workers.dev";
 
 function updateKeyWarning() {
   const hasKey = getApiKey().startsWith("sk-");
@@ -236,9 +234,7 @@ function clearAgentCacheEntry(apiKey) {
 async function getOrCreateAgent(apiKey, model) {
   const suffix = apiKey.slice(-8);
   const cache = getAgentCache();
-  const proxyUrl = getProxyUrl();
-  const clientOptions = { apiKey, dangerouslyAllowBrowser: true };
-  if (proxyUrl) clientOptions.baseURL = proxyUrl;
+  const clientOptions = { apiKey, dangerouslyAllowBrowser: true, baseURL: PROXY_URL };
   const client = new Anthropic(clientOptions);
 
   if (cache[suffix]?.model === model) {
